@@ -55,30 +55,32 @@ func (fu fuchsia) build(params Params) (ImageDetails, error) {
 		return ImageDetails{}, err
 	}
 
-	// Add ssh keys to the zbi image so syzkaller can access the fuchsia vm.
-	_, sshKeyPub, err := genSSHKeys(params.OutputDir)
-	if err != nil {
-		return ImageDetails{}, err
-	}
+	if !params.NoImage {
+		// Add ssh keys to the zbi image so syzkaller can access the fuchsia vm.
+		_, sshKeyPub, err := genSSHKeys(params.OutputDir)
+		if err != nil {
+			return ImageDetails{}, err
+		}
 
-	sshZBI := filepath.Join(params.OutputDir, "initrd")
-	kernelZBI := filepath.Join(params.KernelDir, "out", arch, "fuchsia.zbi")
-	authorizedKeys := fmt.Sprintf("data/ssh/authorized_keys=%s", sshKeyPub)
+		sshZBI := filepath.Join(params.OutputDir, "initrd")
+		kernelZBI := filepath.Join(params.KernelDir, "out", arch, "fuchsia.zbi")
+		authorizedKeys := fmt.Sprintf("data/ssh/authorized_keys=%s", sshKeyPub)
 
-	if _, err := osutil.RunCmd(time.Minute, params.KernelDir, "out/"+arch+"/host_x64/zbi",
-		"-o", sshZBI, kernelZBI, "--entry", authorizedKeys); err != nil {
-		return ImageDetails{}, err
-	}
+		if _, err := osutil.RunCmd(time.Minute, params.KernelDir, "out/"+arch+"/host_x64/zbi",
+			"-o", sshZBI, kernelZBI, "--entry", authorizedKeys); err != nil {
+			return ImageDetails{}, err
+		}
 
-	// Copy and extend the fvm.
-	fvmTool := filepath.Join("out", arch, "host_x64", "fvm")
-	fvmDst := filepath.Join(params.OutputDir, "image")
-	fvmSrc := filepath.Join(params.KernelDir, "out", arch, "obj", "build", "images", "fuchsia", "fuchsia", "fvm.blk")
-	if err := osutil.CopyFile(fvmSrc, fvmDst); err != nil {
-		return ImageDetails{}, err
-	}
-	if _, err := osutil.RunCmd(time.Minute*5, params.KernelDir, fvmTool, fvmDst, "extend", "--length", "3G"); err != nil {
-		return ImageDetails{}, err
+		// Copy and extend the fvm.
+		fvmTool := filepath.Join("out", arch, "host_x64", "fvm")
+		fvmDst := filepath.Join(params.OutputDir, "image")
+		fvmSrc := filepath.Join(params.KernelDir, "out", arch, "obj", "build", "images", "fuchsia", "fuchsia", "fvm.blk")
+		if err := osutil.CopyFile(fvmSrc, fvmDst); err != nil {
+			return ImageDetails{}, err
+		}
+		if _, err := osutil.RunCmd(time.Minute*5, params.KernelDir, fvmTool, fvmDst, "extend", "--length", "3G"); err != nil {
+			return ImageDetails{}, err
+		}
 	}
 
 	for src, dst := range map[string]string{

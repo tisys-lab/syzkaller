@@ -29,6 +29,7 @@ var (
 	flagKernelCmdline = flag.String("cmdline", "", "kernel cmdline file")
 	flagUserspace     = flag.String("userspace", "", "path to userspace for build")
 	flagTrace         = flag.Bool("trace", false, "trace build process and save debug artefacts")
+	flagNoImage       = flag.Bool("no-image", false, "skip building disk image, only build kernel")
 )
 
 func main() {
@@ -64,6 +65,7 @@ func main() {
 		SysctlFile:   *flagKernelSysctl,
 		Config:       kernelConfig,
 		Tracer:       &debugtracer.NullTracer{},
+		NoImage:      *flagNoImage,
 	}
 	if *flagTrace {
 		params.Tracer = &debugtracer.GenericTracer{

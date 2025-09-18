@@ -102,19 +102,21 @@ func (a android) build(params Params) (ImageDetails, error) {
 		return details, fmt.Errorf("failed to copy kernel config: %w", err)
 	}
 
-	imageFile, err := os.Create(filepath.Join(params.OutputDir, "image"))
-	if err != nil {
-		return details, fmt.Errorf("failed to create output file: %w", err)
-	}
-	defer imageFile.Close()
+	if !params.NoImage {
+		imageFile, err := os.Create(filepath.Join(params.OutputDir, "image"))
+		if err != nil {
+			return details, fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer imageFile.Close()
 
-	if err := copyModuleFiles(filepath.Join(params.KernelDir, "out"), params.OutputDir); err != nil {
-		return details, fmt.Errorf("failed copying module files: %w", err)
-	}
+		if err := copyModuleFiles(filepath.Join(params.KernelDir, "out"), params.OutputDir); err != nil {
+			return details, fmt.Errorf("failed copying module files: %w", err)
+		}
 
-	images := append(buildCfg.AdditionalImages, "boot.img")
-	if err := a.embedImages(imageFile, buildDistDir, images...); err != nil {
-		return details, fmt.Errorf("failed to embed images: %w", err)
+		images := append(buildCfg.AdditionalImages, "boot.img")
+		if err := a.embedImages(imageFile, buildDistDir, images...); err != nil {
+			return details, fmt.Errorf("failed to embed images: %w", err)
+		}
 	}
 
 	details.Signature, err = elfBinarySignature(vmlinux, params.Tracer)

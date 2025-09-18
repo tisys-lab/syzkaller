@@ -60,8 +60,6 @@ options 	DIAGNOSTIC
 	kernelObjDir := filepath.Join(objPrefix, params.KernelDir,
 		fmt.Sprintf("%v.%v", params.TargetArch, params.TargetArch), "sys", confFile)
 	for _, s := range []struct{ dir, src, dst string }{
-		{params.UserspaceDir, "image", "image"},
-		{params.UserspaceDir, "key", "key"},
 		{kernelObjDir, "kernel.full", "obj/kernel.full"},
 	} {
 		fullSrc := filepath.Join(s.dir, s.src)
@@ -71,7 +69,19 @@ options 	DIAGNOSTIC
 		}
 	}
 
-	script := fmt.Sprintf(`
+	if !params.NoImage {
+		for _, s := range []struct{ dir, src, dst string }{
+			{params.UserspaceDir, "image", "image"},
+			{params.UserspaceDir, "key", "key"},
+		} {
+			fullSrc := filepath.Join(s.dir, s.src)
+			fullDst := filepath.Join(params.OutputDir, s.dst)
+			if err := osutil.CopyFile(fullSrc, fullDst); err != nil {
+				return ImageDetails{}, fmt.Errorf("failed to copy %v -> %v: %w", fullSrc, fullDst, err)
+			}
+		}
+
+		script := fmt.Sprintf(`
 set -eux
 md=$(sudo mdconfig -a -t vnode image)
 partn=$(gpart show /dev/${md} | awk '/freebsd-ufs/{print $3}' | head -n 1)
@@ -115,8 +125,9 @@ sudo umount $tmpdir
 sudo mdconfig -d -u ${md#md}
 `, objPrefix, params.KernelDir, confFile)
 
-	if debugOut, err := osutil.RunCmd(10*time.Minute, params.OutputDir, "/bin/sh", "-c", script); err != nil {
-		return ImageDetails{}, fmt.Errorf("error copying kernel: %w\n%v", err, debugOut)
+		if debugOut, err := osutil.RunCmd(10*time.Minute, params.OutputDir, "/bin/sh", "-c", script); err != nil {
+			return ImageDetails{}, fmt.Errorf("error copying kernel: %w\n%v", err, debugOut)
+		}
 	}
 	return ImageDetails{}, nil
 }

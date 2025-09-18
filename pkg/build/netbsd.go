@@ -69,8 +69,6 @@ func (ctx netbsd) build(params Params) (ImageDetails, error) {
 
 	for _, s := range []struct{ dir, src, dst string }{
 		{compileDir, "netbsd.gdb", "obj/netbsd.gdb"},
-		{params.UserspaceDir, "image", "image"},
-		{params.UserspaceDir, "key", "key"},
 	} {
 		fullSrc := filepath.Join(s.dir, s.src)
 		fullDst := filepath.Join(params.OutputDir, s.dst)
@@ -78,12 +76,25 @@ func (ctx netbsd) build(params Params) (ImageDetails, error) {
 			return ImageDetails{}, fmt.Errorf("failed to copy %v -> %v: %w", fullSrc, fullDst, err)
 		}
 	}
-	keyFile := filepath.Join(params.OutputDir, "key")
-	if err := os.Chmod(keyFile, 0600); err != nil {
-		return ImageDetails{}, fmt.Errorf("failed to chmod 0600 %v: %w", keyFile, err)
+	if !params.NoImage {
+		for _, s := range []struct{ dir, src, dst string }{
+			{params.UserspaceDir, "image", "image"},
+			{params.UserspaceDir, "key", "key"},
+		} {
+			fullSrc := filepath.Join(s.dir, s.src)
+			fullDst := filepath.Join(params.OutputDir, s.dst)
+			if err := osutil.CopyFile(fullSrc, fullDst); err != nil {
+				return ImageDetails{}, fmt.Errorf("failed to copy %v -> %v: %w", fullSrc, fullDst, err)
+			}
+		}
+		keyFile := filepath.Join(params.OutputDir, "key")
+		if err := os.Chmod(keyFile, 0600); err != nil {
+			return ImageDetails{}, fmt.Errorf("failed to chmod 0600 %v: %w", keyFile, err)
+		}
+		return ImageDetails{}, ctx.copyKernelToDisk(params.TargetArch, params.VMType, params.OutputDir,
+			filepath.Join(compileDir, "netbsd"))
 	}
-	return ImageDetails{}, ctx.copyKernelToDisk(params.TargetArch, params.VMType, params.OutputDir,
-		filepath.Join(compileDir, "netbsd"))
+	return ImageDetails{}, nil
 }
 
 func (ctx netbsd) clean(params Params) error {

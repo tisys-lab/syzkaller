@@ -88,8 +88,10 @@ func (gvisor gvisor) build(params Params) (ImageDetails, error) {
 	}
 	outBinary := filepath.Join(params.KernelDir, filepath.FromSlash(string(match[1])))
 
-	if err := osutil.CopyFile(outBinary, filepath.Join(params.OutputDir, "image")); err != nil {
-		return ImageDetails{}, err
+	if !params.NoImage {
+		if err := osutil.CopyFile(outBinary, filepath.Join(params.OutputDir, "image")); err != nil {
+			return ImageDetails{}, err
+		}
 	}
 	sysTarget := targets.Get(params.TargetOS, params.TargetArch)
 	return ImageDetails{}, osutil.CopyFile(outBinary, filepath.Join(params.OutputDir, "obj", sysTarget.KernelObject))

@@ -38,8 +38,6 @@ func (ctx openbsd) build(params Params) (ImageDetails, error) {
 	for _, s := range []struct{ dir, src, dst string }{
 		{compileDir, "obj/bsd", "kernel"},
 		{compileDir, "obj/bsd.gdb", "obj/bsd.gdb"},
-		{params.UserspaceDir, "image", "image"},
-		{params.UserspaceDir, "key", "key"},
 	} {
 		fullSrc := filepath.Join(s.dir, s.src)
 		fullDst := filepath.Join(params.OutputDir, s.dst)
@@ -47,9 +45,21 @@ func (ctx openbsd) build(params Params) (ImageDetails, error) {
 			return ImageDetails{}, fmt.Errorf("failed to copy %v -> %v: %w", fullSrc, fullDst, err)
 		}
 	}
-	if params.VMType == "gce" {
-		return ImageDetails{}, ctx.copyFilesToImage(
-			filepath.Join(params.UserspaceDir, "overlay"), params.OutputDir)
+	if !params.NoImage {
+		for _, s := range []struct{ dir, src, dst string }{
+			{params.UserspaceDir, "image", "image"},
+			{params.UserspaceDir, "key", "key"},
+		} {
+			fullSrc := filepath.Join(s.dir, s.src)
+			fullDst := filepath.Join(params.OutputDir, s.dst)
+			if err := osutil.CopyFile(fullSrc, fullDst); err != nil {
+				return ImageDetails{}, fmt.Errorf("failed to copy %v -> %v: %w", fullSrc, fullDst, err)
+			}
+		}
+		if params.VMType == "gce" {
+			return ImageDetails{}, ctx.copyFilesToImage(
+				filepath.Join(params.UserspaceDir, "overlay"), params.OutputDir)
+		}
 	}
 	return ImageDetails{}, nil
 }

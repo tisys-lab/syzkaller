@@ -41,6 +41,7 @@ type Params struct {
 	Tracer       debugtracer.DebugTracer
 	BuildCPUs    int // If 0, all CPUs will be used.
 	Build        json.RawMessage
+	NoImage      bool // If true, skip building disk image, only build kernel
 }
 
 // Information that is returned from the Image function.

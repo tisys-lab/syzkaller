@@ -104,8 +104,10 @@ func (st starnix) build(params Params) (ImageDetails, error) {
 		return ImageDetails{}, err
 	}
 	fxfsPath := strings.Trim(string(fxfsPathRaw), "\"\n")
-	if err := osutil.CopyFile(fxfsPath, filepath.Join(params.OutputDir, "image")); err != nil {
-		return ImageDetails{}, err
+	if !params.NoImage {
+		if err := osutil.CopyFile(fxfsPath, filepath.Join(params.OutputDir, "image")); err != nil {
+			return ImageDetails{}, err
+		}
 	}
 	kernelObjPath := filepath.Join(params.KernelDir, "out", arch, "exe.unstripped", "starnix_kernel")
 	if err := osutil.CopyFile(kernelObjPath, filepath.Join(params.OutputDir, "obj", "vmlinux")); err != nil {

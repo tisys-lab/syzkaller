@@ -45,21 +45,23 @@ func (linux linux) build(params Params) (ImageDetails, error) {
 		return details, err
 	}
 
-	if fileInfo, err := os.Stat(params.UserspaceDir); err == nil && fileInfo.IsDir() {
-		// The old way of assembling the image from userspace dir.
-		// It should be removed once all syzbot instances are switched.
-		if err := linux.createImage(params, kernelPath); err != nil {
+	if !params.NoImage {
+		if fileInfo, err := os.Stat(params.UserspaceDir); err == nil && fileInfo.IsDir() {
+			// The old way of assembling the image from userspace dir.
+			// It should be removed once all syzbot instances are switched.
+			if err := linux.createImage(params, kernelPath); err != nil {
+				return details, err
+			}
+		} else if params.VMType == "qemu" {
+			// If UserspaceDir is a file (image) and we use qemu, we just copy image to the output dir assuming
+			// that qemu will use injected kernel boot. In this mode we also assume password/key-less ssh.
+			// The kernel image was already uploaded above.
+			if err := osutil.CopyFile(params.UserspaceDir, filepath.Join(params.OutputDir, "image")); err != nil {
+				return details, err
+			}
+		} else if err := embedLinuxKernel(params, kernelPath); err != nil {
 			return details, err
 		}
-	} else if params.VMType == "qemu" {
-		// If UserspaceDir is a file (image) and we use qemu, we just copy image to the output dir assuming
-		// that qemu will use injected kernel boot. In this mode we also assume password/key-less ssh.
-		// The kernel image was already uploaded above.
-		if err := osutil.CopyFile(params.UserspaceDir, filepath.Join(params.OutputDir, "image")); err != nil {
-			return details, err
-		}
-	} else if err := embedLinuxKernel(params, kernelPath); err != nil {
-		return details, err
 	}
 	vmlinux := filepath.Join(params.OutputDir, "obj", "vmlinux")
 	details.Signature, err = elfBinarySignature(vmlinux, params.Tracer)
